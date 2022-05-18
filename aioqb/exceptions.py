@@ -13,7 +13,7 @@ class IPBanedException(BaseQbittorrentException):
         self.msg = msg
 
     def __str__(self):
-        return '{}: {}'.format(self.__class__.__name__, self.msg)
+        return f'{self.__class__.__name__}: {self.msg}'
 
 
 class HashNotFoundException(BaseQbittorrentException):
@@ -22,7 +22,7 @@ class HashNotFoundException(BaseQbittorrentException):
         self.msg = msg
 
     def __str__(self):
-        return '{}: {}'.format(self.__class__.__name__, self.msg)
+        return f'{self.__class__.__name__}: {self.msg}'
 
 
 class ApiFailedException(BaseQbittorrentException):
@@ -31,4 +31,4 @@ class ApiFailedException(BaseQbittorrentException):
         self.msg = msg
 
     def __str__(self):
-        return '{}: {}'.format(self.__class__.__name__, self.msg)
+        return f'{self.__class__.__name__}: {self.msg}'

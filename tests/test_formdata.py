@@ -9,7 +9,6 @@ async def main():
     async with aiohttp.ClientSession() as sessioin:
         data = aiohttp.FormData()
         data.add_field("test", True)
-        pass
 
 
 asyncio.run(main())
