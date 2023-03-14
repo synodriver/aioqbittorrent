@@ -1,29 +1,43 @@
 """
 Copyright (c) 2008-2021 synodriver <synodriver@gmail.com>
 """
-from typing import List
-from typing import Optional, Union, BinaryIO
+from typing import BinaryIO, List, Optional, Union
 from urllib.parse import urljoin
 
 import aiohttp
 from typing_extensions import Literal
 
+from aioqb.exceptions import (
+    ApiFailedException,
+    BaseQbittorrentException,
+    HashNotFoundException,
+    IPBanedException,
+)
 from aioqb.typing import JsonDumps, JsonLoads
-from aioqb.exceptions import BaseQbittorrentException, IPBanedException, HashNotFoundException, ApiFailedException
-from aioqb.utils import DEFAULT_JSON_DECODER, DEFAULT_JSON_ENCODER, DEFAULT_HOST, DEFAULT_TIMEOUT
+from aioqb.utils import (
+    DEFAULT_HOST,
+    DEFAULT_JSON_DECODER,
+    DEFAULT_JSON_ENCODER,
+    DEFAULT_TIMEOUT,
+)
 
 
 class _BaseQbittorrentClient:
-    def __init__(self, username: Optional[str] = None,
-                 password: Optional[str] = None,
-                 url: Optional[str] = DEFAULT_HOST,
-                 loads: JsonLoads = None,
-                 dumps: JsonDumps = None):
+    def __init__(
+        self,
+        url: Optional[str] = DEFAULT_HOST,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        loads: JsonLoads = None,
+        dumps: JsonDumps = None,
+        prefix: str = "/api/v2",
+    ):
+        self.url = url
         self.username = username
         self.password = password
-        self.url = url
         self.loads = loads
         self.dumps = dumps
+        self.prefix = prefix
 
     # Login
     async def auth_login(self):
@@ -32,7 +46,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"username": self.username, "password": self.password}
-        return await self.send_request("/api/v2/auth/login", data)
+        return await self.send_request(f"{self.prefix}/auth/login", data)
 
     async def auth_logout(self):
         """
@@ -40,7 +54,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/auth/logout", data)
+        return await self.send_request(f"{self.prefix}/auth/logout", data)
 
     # Application
     # Get application version
@@ -50,7 +64,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/version", data)
+        return await self.send_request(f"{self.prefix}/app/version", data)
 
     # Get API version
     async def app_webapiVersion(self):
@@ -59,7 +73,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/webapiVersion", data)
+        return await self.send_request(f"{self.prefix}/app/webapiVersion", data)
 
     # Get build info
     async def app_buildInfo(self):
@@ -68,7 +82,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/buildInfo", data)
+        return await self.send_request(f"{self.prefix}/app/buildInfo", data)
 
     # Shutdown application
     async def app_shutdown(self):
@@ -77,7 +91,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/shutdown", data)
+        return await self.send_request(f"{self.prefix}/app/shutdown", data)
 
     # Get application preferences
     async def app_preferences(self):
@@ -86,157 +100,158 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/preferences", data)
+        return await self.send_request(f"{self.prefix}/app/preferences", data)
 
     # Set application preferences
-    async def app_setPreferences(self,
-                                 locale: Optional[str] = None,
-                                 create_subfolder_enabled: Optional[bool] = None,
-                                 start_paused_enabled: Optional[bool] = None,
-                                 auto_delete_mode: Optional[int] = None,
-                                 preallocate_all: Optional[bool] = None,
-                                 incomplete_files_ext: Optional[bool] = None,
-                                 auto_tmm_enabled: Optional[bool] = None,
-                                 torrent_changed_tmm_enabled: Optional[bool] = None,
-                                 save_path_changed_tmm_enabled: Optional[bool] = None,
-                                 category_changed_tmm_enabled: Optional[bool] = None,
-                                 save_path: Optional[str] = None,
-                                 temp_path_enabled: Optional[bool] = None,
-                                 temp_path: Optional[str] = None,
-                                 scan_dirs: Optional[dict] = None,
-                                 export_dir: Optional[str] = None,
-                                 export_dir_fin: Optional[str] = None,
-                                 mail_notification_enabled: Optional[bool] = None,
-                                 mail_notification_sender: Optional[str] = None,
-                                 mail_notification_email: Optional[str] = None,
-                                 mail_notification_smtp: Optional[str] = None,
-                                 mail_notification_ssl_enabled: Optional[bool] = None,
-                                 mail_notification_auth_enabled: Optional[bool] = None,
-                                 mail_notification_username: Optional[str] = None,
-                                 mail_notification_password: Optional[str] = None,
-                                 autorun_enabled: Optional[bool] = None,
-                                 autorun_program: Optional[str] = None,
-                                 queueing_enabled: Optional[bool] = None,
-                                 max_active_downloads: Optional[int] = None,
-                                 max_active_torrents: Optional[int] = None,
-                                 max_active_uploads: Optional[int] = None,
-                                 dont_count_slow_torrents: Optional[bool] = None,
-                                 slow_torrent_dl_rate_threshold: Optional[int] = None,
-                                 slow_torrent_ul_rate_threshold: Optional[int] = None,
-                                 slow_torrent_inactive_timer: Optional[int] = None,
-                                 max_ratio_enabled: Optional[bool] = None,
-                                 max_ratio: Optional[float] = None,
-                                 max_ratio_act: Optional[int] = None,
-                                 listen_port: Optional[int] = None,
-                                 upnp: Optional[bool] = None,
-                                 random_port: Optional[bool] = None,
-                                 dl_limit: Optional[int] = None,
-                                 up_limit: Optional[int] = None,
-                                 max_connec: Optional[int] = None,
-                                 max_connec_per_torrent: Optional[int] = None,
-                                 max_uploads: Optional[int] = None,
-                                 max_uploads_per_torrent: Optional[int] = None,
-                                 stop_tracker_timeout: Optional[int] = None,
-                                 enable_piece_extent_affinity: Optional[bool] = None,
-                                 bittorrent_protocol: Optional[int] = None,
-                                 limit_utp_rate: Optional[bool] = None,
-                                 limit_tcp_overhead: Optional[bool] = None,
-                                 limit_lan_peers: Optional[bool] = None,
-                                 alt_dl_limit: Optional[int] = None,
-                                 alt_up_limit: Optional[int] = None,
-                                 scheduler_enabled: Optional[bool] = None,
-                                 schedule_from_hour: Optional[int] = None,
-                                 schedule_from_min: Optional[int] = None,
-                                 schedule_to_hour: Optional[int] = None,
-                                 schedule_to_min: Optional[int] = None,
-                                 scheduler_days: Optional[int] = None,
-                                 dht: Optional[bool] = None,
-                                 pex: Optional[bool] = None,
-                                 lsd: Optional[bool] = None,
-                                 encryption: Optional[int] = None,
-                                 anonymous_mode: Optional[bool] = None,
-                                 proxy_type: Optional[int] = None,
-                                 proxy_ip: Optional[str] = None,
-                                 proxy_port: Optional[int] = None,
-                                 proxy_peer_connections: Optional[bool] = None,
-                                 proxy_auth_enabled: Optional[bool] = None,
-                                 proxy_username: Optional[str] = None,
-                                 proxy_password: Optional[str] = None,
-                                 proxy_torrents_only: Optional[bool] = None,
-                                 ip_filter_enabled: Optional[bool] = None,
-                                 ip_filter_path: Optional[str] = None,
-                                 ip_filter_trackers: Optional[bool] = None,
-                                 web_ui_domain_list: Optional[str] = None,
-                                 web_ui_address: Optional[str] = None,
-                                 web_ui_port: Optional[int] = None,
-                                 web_ui_upnp: Optional[bool] = None,
-                                 web_ui_username: Optional[str] = None,
-                                 web_ui_password: Optional[str] = None,
-                                 web_ui_csrf_protection_enabled: Optional[bool] = None,
-                                 web_ui_clickjacking_protection_enabled: Optional[bool] = None,
-                                 web_ui_secure_cookie_enabled: Optional[bool] = None,
-                                 web_ui_max_auth_fail_count: Optional[int] = None,
-                                 web_ui_ban_duration: Optional[int] = None,
-                                 web_ui_session_timeout: Optional[int] = None,
-                                 web_ui_host_header_validation_enabled: Optional[bool] = None,
-                                 bypass_local_auth: Optional[bool] = None,
-                                 bypass_auth_subnet_whitelist_enabled: Optional[bool] = None,
-                                 bypass_auth_subnet_whitelist: Optional[str] = None,
-                                 alternative_webui_enabled: Optional[bool] = None,
-                                 alternative_webui_path: Optional[str] = None,
-                                 use_https: Optional[bool] = None,
-                                 ssl_key: Optional[str] = None,
-                                 ssl_cert: Optional[str] = None,
-                                 web_ui_https_key_path: Optional[str] = None,
-                                 web_ui_https_cert_path: Optional[str] = None,
-                                 dyndns_enabled: Optional[bool] = None,
-                                 dyndns_service: Optional[int] = None,
-                                 dyndns_username: Optional[str] = None,
-                                 dyndns_password: Optional[str] = None,
-                                 dyndns_domain: Optional[str] = None,
-                                 rss_refresh_interval: Optional[int] = None,
-                                 rss_max_articles_per_feed: Optional[int] = None,
-                                 rss_processing_enabled: Optional[bool] = None,
-                                 rss_auto_downloading_enabled: Optional[bool] = None,
-                                 rss_download_repack_proper_episodes: Optional[bool] = None,
-                                 rss_smart_episode_filters: Optional[str] = None,
-                                 add_trackers_enabled: Optional[bool] = None,
-                                 add_trackers: Optional[str] = None,
-                                 web_ui_use_custom_http_headers_enabled: Optional[bool] = None,
-                                 web_ui_custom_http_headers: Optional[str] = None,
-                                 max_seeding_time_enabled: Optional[bool] = None,
-                                 max_seeding_time: Optional[int] = None,
-                                 announce_ip: Optional[str] = None,
-                                 announce_to_all_tiers: Optional[bool] = None,
-                                 announce_to_all_trackers: Optional[bool] = None,
-                                 async_io_threads: Optional[int] = None,
-                                 banned_IPs: Optional[str] = None,
-                                 checking_memory_use: Optional[int] = None,
-                                 current_interface_address: Optional[str] = None,
-                                 current_network_interface: Optional[str] = None,
-                                 disk_cache: Optional[int] = None,
-                                 disk_cache_ttl: Optional[int] = None,
-                                 embedded_tracker_port: Optional[int] = None,
-                                 enable_coalesce_read_write: Optional[bool] = None,
-                                 enable_embedded_tracker: Optional[bool] = None,
-                                 enable_multi_connections_from_same_ip: Optional[bool] = None,
-                                 enable_os_cache: Optional[bool] = None,
-                                 enable_upload_suggestions: Optional[bool] = None,
-                                 file_pool_size: Optional[int] = None,
-                                 outgoing_ports_max: Optional[int] = None,
-                                 outgoing_ports_min: Optional[int] = None,
-                                 recheck_completed_torrents: Optional[bool] = None,
-                                 resolve_peer_countries: Optional[bool] = None,
-                                 save_resume_data_interval: Optional[int] = None,
-                                 send_buffer_low_watermark: Optional[int] = None,
-                                 send_buffer_watermark: Optional[int] = None,
-                                 send_buffer_watermark_factor: Optional[int] = None,
-                                 socket_backlog_size: Optional[int] = None,
-                                 upload_choking_algorithm: Optional[int] = None,
-                                 upload_slots_behavior: Optional[int] = None,
-                                 upnp_lease_duration: Optional[int] = None,
-                                 utp_tcp_mixed_mode: Optional[int] = None
-                                 ):
+    async def app_setPreferences(
+        self,
+        locale: Optional[str] = None,
+        create_subfolder_enabled: Optional[bool] = None,
+        start_paused_enabled: Optional[bool] = None,
+        auto_delete_mode: Optional[int] = None,
+        preallocate_all: Optional[bool] = None,
+        incomplete_files_ext: Optional[bool] = None,
+        auto_tmm_enabled: Optional[bool] = None,
+        torrent_changed_tmm_enabled: Optional[bool] = None,
+        save_path_changed_tmm_enabled: Optional[bool] = None,
+        category_changed_tmm_enabled: Optional[bool] = None,
+        save_path: Optional[str] = None,
+        temp_path_enabled: Optional[bool] = None,
+        temp_path: Optional[str] = None,
+        scan_dirs: Optional[dict] = None,
+        export_dir: Optional[str] = None,
+        export_dir_fin: Optional[str] = None,
+        mail_notification_enabled: Optional[bool] = None,
+        mail_notification_sender: Optional[str] = None,
+        mail_notification_email: Optional[str] = None,
+        mail_notification_smtp: Optional[str] = None,
+        mail_notification_ssl_enabled: Optional[bool] = None,
+        mail_notification_auth_enabled: Optional[bool] = None,
+        mail_notification_username: Optional[str] = None,
+        mail_notification_password: Optional[str] = None,
+        autorun_enabled: Optional[bool] = None,
+        autorun_program: Optional[str] = None,
+        queueing_enabled: Optional[bool] = None,
+        max_active_downloads: Optional[int] = None,
+        max_active_torrents: Optional[int] = None,
+        max_active_uploads: Optional[int] = None,
+        dont_count_slow_torrents: Optional[bool] = None,
+        slow_torrent_dl_rate_threshold: Optional[int] = None,
+        slow_torrent_ul_rate_threshold: Optional[int] = None,
+        slow_torrent_inactive_timer: Optional[int] = None,
+        max_ratio_enabled: Optional[bool] = None,
+        max_ratio: Optional[float] = None,
+        max_ratio_act: Optional[int] = None,
+        listen_port: Optional[int] = None,
+        upnp: Optional[bool] = None,
+        random_port: Optional[bool] = None,
+        dl_limit: Optional[int] = None,
+        up_limit: Optional[int] = None,
+        max_connec: Optional[int] = None,
+        max_connec_per_torrent: Optional[int] = None,
+        max_uploads: Optional[int] = None,
+        max_uploads_per_torrent: Optional[int] = None,
+        stop_tracker_timeout: Optional[int] = None,
+        enable_piece_extent_affinity: Optional[bool] = None,
+        bittorrent_protocol: Optional[int] = None,
+        limit_utp_rate: Optional[bool] = None,
+        limit_tcp_overhead: Optional[bool] = None,
+        limit_lan_peers: Optional[bool] = None,
+        alt_dl_limit: Optional[int] = None,
+        alt_up_limit: Optional[int] = None,
+        scheduler_enabled: Optional[bool] = None,
+        schedule_from_hour: Optional[int] = None,
+        schedule_from_min: Optional[int] = None,
+        schedule_to_hour: Optional[int] = None,
+        schedule_to_min: Optional[int] = None,
+        scheduler_days: Optional[int] = None,
+        dht: Optional[bool] = None,
+        pex: Optional[bool] = None,
+        lsd: Optional[bool] = None,
+        encryption: Optional[int] = None,
+        anonymous_mode: Optional[bool] = None,
+        proxy_type: Optional[int] = None,
+        proxy_ip: Optional[str] = None,
+        proxy_port: Optional[int] = None,
+        proxy_peer_connections: Optional[bool] = None,
+        proxy_auth_enabled: Optional[bool] = None,
+        proxy_username: Optional[str] = None,
+        proxy_password: Optional[str] = None,
+        proxy_torrents_only: Optional[bool] = None,
+        ip_filter_enabled: Optional[bool] = None,
+        ip_filter_path: Optional[str] = None,
+        ip_filter_trackers: Optional[bool] = None,
+        web_ui_domain_list: Optional[str] = None,
+        web_ui_address: Optional[str] = None,
+        web_ui_port: Optional[int] = None,
+        web_ui_upnp: Optional[bool] = None,
+        web_ui_username: Optional[str] = None,
+        web_ui_password: Optional[str] = None,
+        web_ui_csrf_protection_enabled: Optional[bool] = None,
+        web_ui_clickjacking_protection_enabled: Optional[bool] = None,
+        web_ui_secure_cookie_enabled: Optional[bool] = None,
+        web_ui_max_auth_fail_count: Optional[int] = None,
+        web_ui_ban_duration: Optional[int] = None,
+        web_ui_session_timeout: Optional[int] = None,
+        web_ui_host_header_validation_enabled: Optional[bool] = None,
+        bypass_local_auth: Optional[bool] = None,
+        bypass_auth_subnet_whitelist_enabled: Optional[bool] = None,
+        bypass_auth_subnet_whitelist: Optional[str] = None,
+        alternative_webui_enabled: Optional[bool] = None,
+        alternative_webui_path: Optional[str] = None,
+        use_https: Optional[bool] = None,
+        ssl_key: Optional[str] = None,
+        ssl_cert: Optional[str] = None,
+        web_ui_https_key_path: Optional[str] = None,
+        web_ui_https_cert_path: Optional[str] = None,
+        dyndns_enabled: Optional[bool] = None,
+        dyndns_service: Optional[int] = None,
+        dyndns_username: Optional[str] = None,
+        dyndns_password: Optional[str] = None,
+        dyndns_domain: Optional[str] = None,
+        rss_refresh_interval: Optional[int] = None,
+        rss_max_articles_per_feed: Optional[int] = None,
+        rss_processing_enabled: Optional[bool] = None,
+        rss_auto_downloading_enabled: Optional[bool] = None,
+        rss_download_repack_proper_episodes: Optional[bool] = None,
+        rss_smart_episode_filters: Optional[str] = None,
+        add_trackers_enabled: Optional[bool] = None,
+        add_trackers: Optional[str] = None,
+        web_ui_use_custom_http_headers_enabled: Optional[bool] = None,
+        web_ui_custom_http_headers: Optional[str] = None,
+        max_seeding_time_enabled: Optional[bool] = None,
+        max_seeding_time: Optional[int] = None,
+        announce_ip: Optional[str] = None,
+        announce_to_all_tiers: Optional[bool] = None,
+        announce_to_all_trackers: Optional[bool] = None,
+        async_io_threads: Optional[int] = None,
+        banned_IPs: Optional[str] = None,
+        checking_memory_use: Optional[int] = None,
+        current_interface_address: Optional[str] = None,
+        current_network_interface: Optional[str] = None,
+        disk_cache: Optional[int] = None,
+        disk_cache_ttl: Optional[int] = None,
+        embedded_tracker_port: Optional[int] = None,
+        enable_coalesce_read_write: Optional[bool] = None,
+        enable_embedded_tracker: Optional[bool] = None,
+        enable_multi_connections_from_same_ip: Optional[bool] = None,
+        enable_os_cache: Optional[bool] = None,
+        enable_upload_suggestions: Optional[bool] = None,
+        file_pool_size: Optional[int] = None,
+        outgoing_ports_max: Optional[int] = None,
+        outgoing_ports_min: Optional[int] = None,
+        recheck_completed_torrents: Optional[bool] = None,
+        resolve_peer_countries: Optional[bool] = None,
+        save_resume_data_interval: Optional[int] = None,
+        send_buffer_low_watermark: Optional[int] = None,
+        send_buffer_watermark: Optional[int] = None,
+        send_buffer_watermark_factor: Optional[int] = None,
+        socket_backlog_size: Optional[int] = None,
+        upload_choking_algorithm: Optional[int] = None,
+        upload_slots_behavior: Optional[int] = None,
+        upnp_lease_duration: Optional[int] = None,
+        utp_tcp_mixed_mode: Optional[int] = None,
+    ):
         """
         Set application preferences
         :param locale:
@@ -533,9 +548,10 @@ class _BaseQbittorrentClient:
             "upload_choking_algorithm": upload_choking_algorithm,
             "upload_slots_behavior": upload_slots_behavior,
             "upnp_lease_duration": upnp_lease_duration,
-            "utp_tcp_mixed_mode": utp_tcp_mixed_mode}
+            "utp_tcp_mixed_mode": utp_tcp_mixed_mode,
+        }
         data = {k: v for k, v in data.items() if v is not None}
-        return await self.send_request("/api/v2/app/setPreferences", data)
+        return await self.send_request(f"{self.prefix}/app/setPreferences", data)
 
     # Get default save path
     async def app_defaultSavePath(self):
@@ -544,15 +560,18 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/app/defaultSavePath", data)
+        return await self.send_request(f"{self.prefix}/app/defaultSavePath", data)
 
     # Log
     # Get log
-    async def log_main(self, normal: Optional[bool] = True,
-                       info: Optional[bool] = True,
-                       warning: Optional[bool] = True,
-                       critical: Optional[bool] = True,
-                       last_known_id: Optional[int] = -1):
+    async def log_main(
+        self,
+        normal: Optional[bool] = True,
+        info: Optional[bool] = True,
+        warning: Optional[bool] = True,
+        critical: Optional[bool] = True,
+        last_known_id: Optional[int] = -1,
+    ):
         """
         Get log
         :param normal:          Include normal messages (default: true)
@@ -567,9 +586,9 @@ class _BaseQbittorrentClient:
             "info": info,
             "warning": warning,
             "critical": critical,
-            "last_known_id": last_known_id
+            "last_known_id": last_known_id,
         }
-        return await self.send_request("/api/v2/log/main", data)
+        return await self.send_request(f"{self.prefix}/log/main", data)
 
     # Get peer log
     async def log_peers(self, last_known_id: Optional[int] = -1):
@@ -579,7 +598,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"last_known_id": last_known_id}
-        return await self.send_request("/api/v2/log/peers", data)
+        return await self.send_request(f"{self.prefix}/log/peers", data)
 
     # Sync
     async def sync_maindata(self, rid: Optional[int] = 0):
@@ -590,7 +609,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"rid": rid}
-        return await self.send_request("/api/v2/sync/maindata", data)
+        return await self.send_request(f"{self.prefix}/sync/maindata", data)
 
     async def sync_torrentPeers(self, hash: str, rid: Optional[int] = 0):
         """
@@ -600,7 +619,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "rid": rid}
-        return await self.send_request("/api/v2/sync/torrentPeers", data)
+        return await self.send_request(f"{self.prefix}/sync/torrentPeers", data)
 
     # Transfer info
     async def transfer_info(self):
@@ -610,7 +629,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/transfer/info", data)
+        return await self.send_request(f"{self.prefix}/transfer/info", data)
 
     async def transfer_speedLimitsMode(self):
         """
@@ -618,7 +637,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/transfer/speedLimitsMode", data)
+        return await self.send_request(f"{self.prefix}/transfer/speedLimitsMode", data)
 
     async def transfer_toggleSpeedLimitsMode(self):
         """
@@ -626,7 +645,9 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/transfer/toggleSpeedLimitsMode", data)
+        return await self.send_request(
+            f"{self.prefix}/transfer/toggleSpeedLimitsMode", data
+        )
 
     async def transfer_downloadLimit(self):
         """
@@ -634,7 +655,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/transfer/downloadLimit", data)
+        return await self.send_request(f"{self.prefix}/transfer/downloadLimit", data)
 
     async def transfer_setDownloadLimit(self, limit: int):
         """
@@ -643,7 +664,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"limit": limit}
-        return await self.send_request("/api/v2/transfer/setDownloadLimit", data)
+        return await self.send_request(f"{self.prefix}/transfer/setDownloadLimit", data)
 
     async def transfer_uploadLimit(self):
         """
@@ -651,7 +672,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/transfer/uploadLimit", data)
+        return await self.send_request(f"{self.prefix}/transfer/uploadLimit", data)
 
     async def transfer_setUploadLimit(self, limit: int):
         """
@@ -660,7 +681,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"limit": limit}
-        return await self.send_request("/api/v2/transfer/setUploadLimit", data)
+        return await self.send_request(f"{self.prefix}/transfer/setUploadLimit", data)
 
     async def transfer_banPeers(self, peers: str):
         """
@@ -669,17 +690,20 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"peers": peers}
-        return await self.send_request("/api/v2/transfer/banPeers", data)
+        return await self.send_request(f"{self.prefix}/transfer/banPeers", data)
 
     # Torrent management All Torrent management API methods are under "torrents", e.g.: /api/v2/torrents/methodName.
-    async def torrents_info(self, filter: Optional[str] = None,
-                            category: Optional[str] = None,
-                            tag: Optional[str] = None,
-                            sort: Optional[str] = None,
-                            reverse: Optional[bool] = False,
-                            limit: Optional[int] = None,
-                            offset: Optional[int] = None,
-                            hashes: Optional[Union[str, List[str]]] = None):
+    async def torrents_info(
+        self,
+        filter: Optional[str] = None,
+        category: Optional[str] = None,
+        tag: Optional[str] = None,
+        sort: Optional[str] = None,
+        reverse: Optional[bool] = False,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        hashes: Optional[Union[str, List[str]]] = None,
+    ):
         """
         Get torrent list
         :param filter: Filter torrent list by state. Allowed state filters: all, downloading, seeding, completed, paused, active, inactive, resumed, stalled, stalled_uploading, stalled_downloading, errored
@@ -701,10 +725,10 @@ class _BaseQbittorrentClient:
             "reverse": reverse,
             "limit": limit,
             "offset": offset,
-            "hashes": hashes
+            "hashes": hashes,
         }
         data = {k: v for k, v in data.items() if v is not None}
-        return await self.send_request("/api/v2/torrents/info", data)
+        return await self.send_request(f"{self.prefix}/torrents/info", data)
 
     async def torrents_properties(self, hash: str):
         """
@@ -714,7 +738,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash}
-        return await self.send_request("/api/v2/torrents/properties", data)
+        return await self.send_request(f"{self.prefix}/torrents/properties", data)
 
     async def torrents_trackers(self, hash: str):
         """
@@ -724,7 +748,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash}
-        return await self.send_request("/api/v2/torrents/trackers", data)
+        return await self.send_request(f"{self.prefix}/torrents/trackers", data)
 
     async def torrents_webseeds(self, hash: str):
         """
@@ -733,7 +757,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash}
-        return await self.send_request("/api/v2/torrents/webseeds", data)
+        return await self.send_request(f"{self.prefix}/torrents/webseeds", data)
 
     async def torrents_files(self, hash: str, indexes: Optional[str] = None):
         """
@@ -744,7 +768,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "index": indexes} if indexes else {"hash": hash}
-        return await self.send_request("/api/v2/torrents/files", data)
+        return await self.send_request(f"{self.prefix}/torrents/files", data)
 
     async def torrents_pieceStates(self, hash: str):
         """
@@ -754,7 +778,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash}
-        return await self.send_request("/api/v2/torrents/pieceStates", data)
+        return await self.send_request(f"{self.prefix}/torrents/pieceStates", data)
 
     async def torrents_pieceHashes(self, hash: str):
         """
@@ -764,7 +788,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash}
-        return await self.send_request("/api/v2/torrents/pieceHashes", data)
+        return await self.send_request(f"{self.prefix}/torrents/pieceHashes", data)
 
     async def torrents_pause(self, hashes: str):
         """
@@ -775,7 +799,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/pause", data)
+        return await self.send_request(f"{self.prefix}/torrents/pause", data)
 
     async def torrents_resume(self, hashes: str):
         """
@@ -786,7 +810,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/resume", data)
+        return await self.send_request(f"{self.prefix}/torrents/resume", data)
 
     async def torrents_delete(self, hashes: str, deleteFiles: Optional[bool] = False):
         """
@@ -797,7 +821,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hashes": hashes, "deleteFiles": deleteFiles}
-        return await self.send_request("/api/v2/torrents/delete", data)
+        return await self.send_request(f"{self.prefix}/torrents/delete", data)
 
     async def torrents_recheck(self, hashes: str):
         """
@@ -808,7 +832,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/recheck", data)
+        return await self.send_request(f"{self.prefix}/torrents/recheck", data)
 
     async def torrents_reannounce(self, hashes: str):
         """
@@ -819,25 +843,28 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/reannounce", data)
+        return await self.send_request(f"{self.prefix}/torrents/reannounce", data)
 
-    async def torrents_add(self, urls: Optional[List[str]] = None,
-                           torrents: Optional[List[BinaryIO]] = None,
-                           savepath: Optional[str] = None,
-                           cookie: Optional[str] = None,
-                           category: Optional[str] = None,
-                           tags: Optional[Union[str, List[str]]] = None,
-                           skip_checking: Optional[Union[Literal["true", "false"], bool]] = None,
-                           paused: Optional[Union[Literal["true", "false"], bool]] = None,
-                           root_folder: Union[Literal["true", "false", "unset"], bool] = "unset",
-                           rename: Optional[str] = None,
-                           upLimit: Optional[int] = None,
-                           dlLimit: Optional[int] = None,
-                           ratioLimit: Optional[float] = None,
-                           seedingTimeLimit: Optional[int] = None,
-                           autoTMM: Optional[bool] = None,
-                           sequentialDownload: Optional[Union[Literal["true", "false"], bool]] = None,
-                           firstLastPiecePrio: Optional[Union[Literal["true", "false"], bool]] = None):
+    async def torrents_add(
+        self,
+        urls: Optional[List[str]] = None,
+        torrents: Optional[List[BinaryIO]] = None,
+        savepath: Optional[str] = None,
+        cookie: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[Union[str, List[str]]] = None,
+        skip_checking: Optional[Union[Literal["true", "false"], bool]] = None,
+        paused: Optional[Union[Literal["true", "false"], bool]] = None,
+        root_folder: Union[Literal["true", "false", "unset"], bool] = "unset",
+        rename: Optional[str] = None,
+        upLimit: Optional[int] = None,
+        dlLimit: Optional[int] = None,
+        ratioLimit: Optional[float] = None,
+        seedingTimeLimit: Optional[int] = None,
+        autoTMM: Optional[bool] = None,
+        sequentialDownload: Optional[Union[Literal["true", "false"], bool]] = None,
+        firstLastPiecePrio: Optional[Union[Literal["true", "false"], bool]] = None,
+    ):
         """
         Add new torrent
         :param urls: URLs separated with newlines
@@ -865,7 +892,12 @@ class _BaseQbittorrentClient:
             data.add_field("urls", "\n".join(urls))
         if torrents is not None:
             for t in torrents:
-                data.add_field("torrents", t, content_type="application/x-bittorrent", filename=t.name)
+                data.add_field(
+                    "torrents",
+                    t,
+                    content_type="application/x-bittorrent",
+                    filename=t.name,
+                )
         if savepath is not None:
             data.add_field("savepath", savepath)
         if cookie is not None:
@@ -902,16 +934,19 @@ class _BaseQbittorrentClient:
         if autoTMM is not None:
             data.add_field("autoTMM", autoTMM)
         if sequentialDownload is not None:
-            sequentialDownload = "true" if sequentialDownload in ("true", True) else "false"
+            sequentialDownload = (
+                "true" if sequentialDownload in ("true", True) else "false"
+            )
             data.add_field("sequentialDownload", sequentialDownload)
         if firstLastPiecePrio is not None:
-            firstLastPiecePrio = "true" if firstLastPiecePrio in ("true", True) else "false"
+            firstLastPiecePrio = (
+                "true" if firstLastPiecePrio in ("true", True) else "false"
+            )
             data.add_field("firstLastPiecePrio", firstLastPiecePrio)
 
-        return await self.send_request("/api/v2/torrents/add", data)
+        return await self.send_request(f"{self.prefix}/torrents/add", data)
 
-    async def torrents_addTrackers(self, hash: str,
-                                   urls: List[str]):
+    async def torrents_addTrackers(self, hash: str, urls: List[str]):
         """
         Add trackers to torrent
         Requires knowing the torrent hash. You can get it from torrent_info.
@@ -920,11 +955,9 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "urls": "%0A".join(urls)}
-        return await self.send_request("/api/v2/torrents/addTrackers", data)
+        return await self.send_request(f"{self.prefix}/torrents/addTrackers", data)
 
-    async def torrents_editTracker(self, hash: str,
-                                   origUrl: str,
-                                   newUrl: str):
+    async def torrents_editTracker(self, hash: str, origUrl: str, newUrl: str):
         """
         Edit trackers
         :param hash: The hash of the torrent
@@ -933,10 +966,9 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "origUrl": origUrl, "newUrl": newUrl}
-        return await self.send_request("/api/v2/torrents/editTracker", data)
+        return await self.send_request(f"{self.prefix}/torrents/editTracker", data)
 
-    async def torrents_removeTrackers(self, hash: str,
-                                      urls: Union[str, List[str]]):
+    async def torrents_removeTrackers(self, hash: str, urls: Union[str, List[str]]):
         """
         Remove trackers
         :param hash: The hash of the torrent
@@ -945,9 +977,11 @@ class _BaseQbittorrentClient:
         """
         urls = urls if isinstance(urls, str) else "|".join(urls)
         data = {"hash": hash, "urls": urls}
-        return await self.send_request("/api/v2/torrents/removeTrackers", data)
+        return await self.send_request(f"{self.prefix}/torrents/removeTrackers", data)
 
-    async def torrents_addPeers(self, hashes: Union[str, List[str]], peers: Union[str, List[str]]):
+    async def torrents_addPeers(
+        self, hashes: Union[str, List[str]], peers: Union[str, List[str]]
+    ):
         """
         Add peers
         :param hashes: The hash of the torrent, or multiple hashes separated by a pipe |
@@ -957,7 +991,7 @@ class _BaseQbittorrentClient:
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         peers = peers if isinstance(peers, str) else "|".join(peers)
         data = {"hashes": hashes, "peers": peers}
-        return await self.send_request("/api/v2/torrents/addPeers", data)
+        return await self.send_request(f"{self.prefix}/torrents/addPeers", data)
 
     async def torrents_increasePrio(self, hashes: Union[str, List[str]]):
         """
@@ -969,7 +1003,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/increasePrio", data)
+        return await self.send_request(f"{self.prefix}/torrents/increasePrio", data)
 
     async def torrents_decreasePrio(self, hashes: Union[str, List[str]]):
         """
@@ -981,7 +1015,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/decreasePrio", data)
+        return await self.send_request(f"{self.prefix}/torrents/decreasePrio", data)
 
     async def torrents_topPrio(self, hashes: Union[str, List[str]]):
         """
@@ -993,7 +1027,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/topPrio", data)
+        return await self.send_request(f"{self.prefix}/torrents/topPrio", data)
 
     async def torrents_bottomPrio(self, hashes: Union[str, List[str]]):
         """
@@ -1005,9 +1039,11 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/bottomPrio", data)
+        return await self.send_request(f"{self.prefix}/torrents/bottomPrio", data)
 
-    async def torrents_filePrio(self, hash: str, id: Union[str, List[str]], priority: int):
+    async def torrents_filePrio(
+        self, hash: str, id: Union[str, List[str]], priority: int
+    ):
         """
         Set file priority
         :param hash: The hash of the torrent
@@ -1017,7 +1053,7 @@ class _BaseQbittorrentClient:
         """
         id = id if isinstance(id, str) else "|".join(id)
         data = {"hash": hash, "id": id, "priority": priority}
-        return await self.send_request("/api/v2/torrents/filePrio", data)
+        return await self.send_request(f"{self.prefix}/torrents/filePrio", data)
 
     async def torrents_downloadLimit(self, hashes: Union[str, List[str]]):
         """
@@ -1028,9 +1064,11 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/downloadLimit", data)
+        return await self.send_request(f"{self.prefix}/torrents/downloadLimit", data)
 
-    async def torrents_setDownloadLimit(self, hashes: Union[str, List[str]], limit: int):
+    async def torrents_setDownloadLimit(
+        self, hashes: Union[str, List[str]], limit: int
+    ):
         """
         Set torrent download limit
         Requires knowing the torrent hash. You can get it from torrents_info.
@@ -1040,11 +1078,14 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "limit": limit}
-        return await self.send_request("/api/v2/torrents/setDownloadLimit", data)
+        return await self.send_request(f"{self.prefix}/torrents/setDownloadLimit", data)
 
-    async def setShareLimits(self, hashes: Union[str, List[str]],
-                             ratioLimit: Union[int, float],
-                             seedingTimeLimit: int):
+    async def setShareLimits(
+        self,
+        hashes: Union[str, List[str]],
+        ratioLimit: Union[int, float],
+        seedingTimeLimit: int,
+    ):
         """
         Set torrent share limit
         :param hashes: hashes can contain multiple hashes separated by | or set to all
@@ -1055,8 +1096,12 @@ class _BaseQbittorrentClient:
         :return:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
-        data = {"hashes": hashes, "ratioLimit": ratioLimit, "seedingTimeLimit": seedingTimeLimit}
-        return await self.send_request("/api/v2/torrents/setShareLimits", data)
+        data = {
+            "hashes": hashes,
+            "ratioLimit": ratioLimit,
+            "seedingTimeLimit": seedingTimeLimit,
+        }
+        return await self.send_request(f"{self.prefix}/torrents/setShareLimits", data)
 
     async def torrents_uploadLimit(self, hashes: Union[str, List[str]]):
         """
@@ -1067,7 +1112,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/uploadLimit", data)
+        return await self.send_request(f"{self.prefix}/torrents/uploadLimit", data)
 
     async def torrents_setUploadLimit(self, hashes: Union[str, List[str]], limit: int):
         """
@@ -1079,7 +1124,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "limit": limit}
-        return await self.send_request("/api/v2/torrents/setUploadLimit", data)
+        return await self.send_request(f"{self.prefix}/torrents/setUploadLimit", data)
 
     async def torrents_setLocation(self, hashes: Union[str, List[str]], location: str):
         """
@@ -1092,7 +1137,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "location": location}
-        return await self.send_request("/api/v2/torrents/setLocation", data)
+        return await self.send_request(f"{self.prefix}/torrents/setLocation", data)
 
     async def torrents_rename(self, hash: str, name: str):
         """
@@ -1102,7 +1147,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "name": name}
-        return await self.send_request("/api/v2/torrents/rename", data)
+        return await self.send_request(f"{self.prefix}/torrents/rename", data)
 
     async def torrents_setCategory(self, hashes: Union[str, List[str]], category: str):
         """
@@ -1114,7 +1159,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "category": category}
-        return await self.send_request("/api/v2/torrents/setCategory", data)
+        return await self.send_request(f"{self.prefix}/torrents/setCategory", data)
 
     async def torrents_categories(self):
         """
@@ -1122,7 +1167,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/torrents/categories", data)
+        return await self.send_request(f"{self.prefix}/torrents/categories", data)
 
     async def torrents_createCategory(self, category: str, savePath: str):
         """
@@ -1132,7 +1177,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"category": category, "savePath": savePath}
-        return await self.send_request("/api/v2/torrents/createCategory", data)
+        return await self.send_request(f"{self.prefix}/torrents/createCategory", data)
 
     async def torrents_editCategory(self, category: str, savePath: str):
         """
@@ -1142,7 +1187,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"category": category, "savePath": savePath}
-        return await self.send_request("/api/v2/torrents/editCategory", data)
+        return await self.send_request(f"{self.prefix}/torrents/editCategory", data)
 
     async def torrents_removeCategories(self, categories: Union[str, List[str]]):
         """
@@ -1150,11 +1195,15 @@ class _BaseQbittorrentClient:
         :param categories: categories can contain multiple cateogies separated by \n (%0A urlencoded)
         :return:
         """
-        categories = categories if isinstance(categories, str) else "%0A".join(categories)
+        categories = (
+            categories if isinstance(categories, str) else "%0A".join(categories)
+        )
         data = {"categories": categories}
-        return await self.send_request("/api/v2/torrents/removeCategories", data)
+        return await self.send_request(f"{self.prefix}/torrents/removeCategories", data)
 
-    async def torrents_addTags(self, hashes: Union[str, List[str]], tags: Union[str, List[str]]):
+    async def torrents_addTags(
+        self, hashes: Union[str, List[str]], tags: Union[str, List[str]]
+    ):
         """
         Add torrent tags
         Requires knowing the torrent hash. You can get it from torrents_info.
@@ -1165,9 +1214,11 @@ class _BaseQbittorrentClient:
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         tags = tags if isinstance(tags, str) else ",".join(tags)
         data = {"hashes": hashes, "tags": tags}
-        return await self.send_request("/api/v2/torrents/addTags", data)
+        return await self.send_request(f"{self.prefix}/torrents/addTags", data)
 
-    async def torrents_removeTags(self, hashes: Union[str, List[str]], tags: Union[str, List[str]]):
+    async def torrents_removeTags(
+        self, hashes: Union[str, List[str]], tags: Union[str, List[str]]
+    ):
         """
         Remove torrent tags
         Requires knowing the torrent hash. You can get it from torrents_info.
@@ -1178,7 +1229,7 @@ class _BaseQbittorrentClient:
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         tags = tags if isinstance(tags, str) else ",".join(tags)
         data = {"hashes": hashes, "tags": tags}
-        return await self.send_request("/api/v2/torrents/removeTags", data)
+        return await self.send_request(f"{self.prefix}/torrents/removeTags", data)
 
     async def torrents_tags(self):
         """
@@ -1186,7 +1237,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/torrents/tags", data)
+        return await self.send_request(f"{self.prefix}/torrents/tags", data)
 
     async def torrents_createTags(self, tags: Union[str, List[str]]):
         """
@@ -1196,7 +1247,7 @@ class _BaseQbittorrentClient:
         """
         tags = tags if isinstance(tags, str) else ",".join(tags)
         data = {"tags": tags}
-        return await self.send_request("/api/v2/torrents/createTags", data)
+        return await self.send_request(f"{self.prefix}/torrents/createTags", data)
 
     async def torrents_deleteTags(self, tags: Union[str, List[str]]):
         """
@@ -1206,9 +1257,11 @@ class _BaseQbittorrentClient:
         """
         tags = tags if isinstance(tags, str) else ",".join(tags)
         data = {"tags": tags}
-        return await self.send_request("/api/v2/torrents/deleteTags", data)
+        return await self.send_request(f"{self.prefix}/torrents/deleteTags", data)
 
-    async def torrents_setAutoManagement(self, hashes: Union[str, List[str]], enable: Optional[bool] = False):
+    async def torrents_setAutoManagement(
+        self, hashes: Union[str, List[str]], enable: Optional[bool] = False
+    ):
         """
         Set automatic torrent management
         :param hashes: hashes can contain multiple hashes separated by | or set to all
@@ -1217,7 +1270,9 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "enable": enable}
-        return await self.send_request("/api/v2/torrents/setAutoManagement", data)
+        return await self.send_request(
+            f"{self.prefix}/torrents/setAutoManagement", data
+        )
 
     async def torrents_toggleSequentialDownload(self, hashes: Union[str, List[str]]):
         """
@@ -1229,7 +1284,9 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/toggleSequentialDownload", data)
+        return await self.send_request(
+            f"{self.prefix}/torrents/toggleSequentialDownload", data
+        )
 
     async def torrents_toggleFirstLastPiecePrio(self, hashes: Union[str, List[str]]):
         """
@@ -1242,9 +1299,13 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes}
-        return await self.send_request("/api/v2/torrents/toggleFirstLastPiecePrio", data)
+        return await self.send_request(
+            f"{self.prefix}/torrents/toggleFirstLastPiecePrio", data
+        )
 
-    async def torrents_setForceStart(self, hashes: Union[str, List[str]], value: Optional[bool] = False):
+    async def torrents_setForceStart(
+        self, hashes: Union[str, List[str]], value: Optional[bool] = False
+    ):
         """
         Set force start
         :param hashes: hashes can contain multiple hashes separated by | or set to all
@@ -1254,9 +1315,11 @@ class _BaseQbittorrentClient:
 
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "value": value}
-        return await self.send_request("/api/v2/torrents/setForceStart", data)
+        return await self.send_request(f"{self.prefix}/torrents/setForceStart", data)
 
-    async def torrents_setSuperSeeding(self, hashes: Union[str, List[str]], value: Optional[bool] = False):
+    async def torrents_setSuperSeeding(
+        self, hashes: Union[str, List[str]], value: Optional[bool] = False
+    ):
         """
         Set super seeding
         :param hashes: hashes can contain multiple hashes separated by | or set to all
@@ -1265,7 +1328,7 @@ class _BaseQbittorrentClient:
         """
         hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {"hashes": hashes, "value": value}
-        return await self.send_request("/api/v2/torrents/setSuperSeeding", data)
+        return await self.send_request(f"{self.prefix}/torrents/setSuperSeeding", data)
 
     async def torrents_renameFile(self, hash: str, oldPath: str, newPath: str):
         """
@@ -1276,7 +1339,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "oldPath": oldPath, "newPath": newPath}
-        return await self.send_request("/api/v2/torrents/renameFile", data)
+        return await self.send_request(f"{self.prefix}/torrents/renameFile", data)
 
     async def torrents_renameFolder(self, hash: str, oldPath: str, newPath: str):
         """
@@ -1287,7 +1350,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"hash": hash, "oldPath": oldPath, "newPath": newPath}
-        return await self.send_request("/api/v2/torrents/renameFolder", data)
+        return await self.send_request(f"{self.prefix}/torrents/renameFolder", data)
 
     # RSS (experimental) /api/v2/rss/methodName.
     async def rss_addFolder(self, path: str):
@@ -1297,7 +1360,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"path": path}
-        return await self.send_request("/api/v2/rss/addFolder", data)
+        return await self.send_request(f"{self.prefix}/rss/addFolder", data)
 
     async def rss_addFeed(self, url: str, path: Optional[str]):
         """
@@ -1307,7 +1370,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"url": url, "path": path}
-        return await self.send_request("/api/v2/rss/addFeed", data)
+        return await self.send_request(f"{self.prefix}/rss/addFeed", data)
 
     async def rss_removeItem(self, path: str):
         """
@@ -1317,7 +1380,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"path": path}
-        return await self.send_request("/api/v2/rss/removeItem", data)
+        return await self.send_request(f"{self.prefix}/rss/removeItem", data)
 
     async def rss_moveItem(self, itemPath: str, destPath: str):
         """
@@ -1327,7 +1390,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"itemPath": itemPath, "destPath": destPath}
-        return await self.send_request("/api/v2/rss/moveItem", data)
+        return await self.send_request(f"{self.prefix}/rss/moveItem", data)
 
     async def rss_items(self, withData: Optional[bool] = False):
         """
@@ -1336,7 +1399,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"withData": withData}
-        return await self.send_request("/api/v2/rss/items", data)
+        return await self.send_request(f"{self.prefix}/rss/items", data)
 
     async def rss_markAsRead(self, itemPath: str, articleId: Optional[str] = None):
         """
@@ -1345,8 +1408,12 @@ class _BaseQbittorrentClient:
         :param articleId:
         :return:
         """
-        data = {"itemPath": itemPath} if articleId is None else {"itemPath": itemPath, "articleId": articleId}
-        return await self.send_request("/api/v2/rss/markAsRead", data)
+        data = (
+            {"itemPath": itemPath}
+            if articleId is None
+            else {"itemPath": itemPath, "articleId": articleId}
+        )
+        return await self.send_request(f"{self.prefix}/rss/markAsRead", data)
 
     async def rss_refreshItem(self, itemPath: str):
         """
@@ -1355,23 +1422,25 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"itemPath": itemPath}
-        return await self.send_request("/api/v2/rss/refreshItem", data)
+        return await self.send_request(f"{self.prefix}/rss/refreshItem", data)
 
-    async def rss_setRule(self, ruleName: str,
-                          enabled: Optional[bool] = None,
-                          mustContain: Optional[str] = None,
-                          mustNotContain: Optional[str] = None,
-                          useRegex: Optional[bool] = None,
-                          episodeFilter: Optional[str] = None,
-                          smartFilter: Optional[bool] = None,
-                          previouslyMatchedEpisodes: Optional[list] = None,
-                          affectedFeeds: Optional[list] = None,
-                          ignoreDays: Optional[int] = None,
-                          lastMatch: Optional[str] = None,
-                          addPaused: Optional[bool] = None,
-                          assignedCategory: Optional[str] = None,
-                          savePath: Optional[str] = None
-                          ):
+    async def rss_setRule(
+        self,
+        ruleName: str,
+        enabled: Optional[bool] = None,
+        mustContain: Optional[str] = None,
+        mustNotContain: Optional[str] = None,
+        useRegex: Optional[bool] = None,
+        episodeFilter: Optional[str] = None,
+        smartFilter: Optional[bool] = None,
+        previouslyMatchedEpisodes: Optional[list] = None,
+        affectedFeeds: Optional[list] = None,
+        ignoreDays: Optional[int] = None,
+        lastMatch: Optional[str] = None,
+        addPaused: Optional[bool] = None,
+        assignedCategory: Optional[str] = None,
+        savePath: Optional[str] = None,
+    ):
         """
         Set auto-downloading rule
         :param ruleName:                        Rule name (e.g. "Punisher")
@@ -1403,12 +1472,12 @@ class _BaseQbittorrentClient:
             "lastMatch": lastMatch,
             "addPaused": addPaused,
             "assignedCategory": assignedCategory,
-            "savePath": savePath
+            "savePath": savePath,
         }
         ruleDef = {k: v for k, v in ruleDef.items() if v is not None}
         ruleDef: str = self.dumps(ruleDef)
         data = {"ruleName": ruleName, "ruleDef": ruleDef}
-        return await self.send_request("/api/v2/rss/setRule", data)
+        return await self.send_request(f"{self.prefix}/rss/setRule", data)
 
     async def rss_renameRule(self, ruleName: str, newRuleName: str):
         """
@@ -1418,7 +1487,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"ruleName": ruleName, "newRuleName": newRuleName}
-        return await self.send_request("/api/v2/rss/renameRule", data)
+        return await self.send_request(f"{self.prefix}/rss/renameRule", data)
 
     async def rss_removeRule(self, ruleName: str):
         """
@@ -1427,7 +1496,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"ruleName": ruleName}
-        return await self.send_request("/api/v2/rss/removeRule", data)
+        return await self.send_request(f"{self.prefix}/rss/removeRule", data)
 
     async def rss_rules(self):
         """
@@ -1435,7 +1504,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/rss/rules", data)
+        return await self.send_request(f"{self.prefix}/rss/rules", data)
 
     async def rss_matchingArticles(self, ruleName: str):
         """
@@ -1444,7 +1513,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"ruleName": ruleName}
-        return await self.send_request("/api/v2/rss/matchingArticles", data)
+        return await self.send_request(f"{self.prefix}/rss/matchingArticles", data)
 
     # Search /api/v2/search/methodName.
 
@@ -1457,7 +1526,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"pattern": pattern, "plugins": plugins, "category": category}
-        return await self.send_request("/api/v2/search/start", data)
+        return await self.send_request(f"{self.prefix}/search/start", data)
 
     async def search_stop(self, id: int):
         """
@@ -1466,7 +1535,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"id": id}
-        return await self.send_request("/api/v2/search/stop", data)
+        return await self.send_request(f"{self.prefix}/search/stop", data)
 
     async def search_status(self, id: Optional[int] = None):
         """
@@ -1475,9 +1544,11 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"id": id} if id is not None else None
-        return await self.send_request("/api/v2/search/status", data)
+        return await self.send_request(f"{self.prefix}/search/status", data)
 
-    async def search_results(self, id: int, limit: Optional[int] = 0, offset: Optional[int] = 0):
+    async def search_results(
+        self, id: int, limit: Optional[int] = 0, offset: Optional[int] = 0
+    ):
         """
         Get search results
         :param id: ID of the search job
@@ -1486,7 +1557,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"id": id, "limit": limit, "offset": offset}
-        return await self.send_request("/api/v2/search/results", data)
+        return await self.send_request(f"{self.prefix}/search/results", data)
 
     async def search_delete(self, id: int):
         """
@@ -1495,7 +1566,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"id": id}
-        return await self.send_request("/api/v2/search/delete", data)
+        return await self.send_request(f"{self.prefix}/search/delete", data)
 
     async def search_plugins(self):
         """
@@ -1503,7 +1574,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/search/plugins", data)
+        return await self.send_request(f"{self.prefix}/search/plugins", data)
 
     async def search_installPlugin(self, sources: str):
         """
@@ -1513,7 +1584,7 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"sources": sources}
-        return await self.send_request("/api/v2/search/installPlugin", data)
+        return await self.send_request(f"{self.prefix}/search/installPlugin", data)
 
     async def search_uninstallPlugin(self, names: Union[str, List[str]]):
         """
@@ -1523,7 +1594,7 @@ class _BaseQbittorrentClient:
         """
         names = names if isinstance(names, str) else "|".join(names)
         data = {"names": names}
-        return await self.send_request("/api/v2/search/uninstallPlugin", data)
+        return await self.send_request(f"{self.prefix}/search/uninstallPlugin", data)
 
     async def search_enablePlugin(self, names: Union[str, List[str]], enable: bool):
         """
@@ -1534,7 +1605,7 @@ class _BaseQbittorrentClient:
         """
         names = names if isinstance(names, str) else "|".join(names)
         data = {"names": names, "enable": enable}
-        return await self.send_request("/api/v2/search/enablePlugin", data)
+        return await self.send_request(f"{self.prefix}/search/enablePlugin", data)
 
     async def search_updatePlugins(self):
         """
@@ -1542,30 +1613,40 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = None
-        return await self.send_request("/api/v2/search/updatePlugins", data)
+        return await self.send_request(f"{self.prefix}/search/updatePlugins", data)
 
     async def send_request(self, endpoint: str, data, method: str = "POST"):
         raise NotImplementedError
 
 
 class QbittorrentClient(_BaseQbittorrentClient):
-    def __init__(self, username: Optional[str] = None,
-                 password: Optional[str] = None,
-                 url: Optional[str] = DEFAULT_HOST,
-                 timeout: Union[int, float] = DEFAULT_TIMEOUT,
-                 **kwargs):
+    def __init__(
+        self,
+        url: Optional[str] = DEFAULT_HOST,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        timeout: Union[int, float] = DEFAULT_TIMEOUT,
+        **kwargs,
+    ):
         self.timeout = timeout
         self.kwargs = kwargs  # 用于session.post
-        loads = self.kwargs.pop("loads") if "loads" in self.kwargs else DEFAULT_JSON_DECODER  # json serialize
-        dumps = self.kwargs.pop("dumps") if "dumps" in self.kwargs else DEFAULT_JSON_ENCODER
+        loads = (
+            self.kwargs.pop("loads") if "loads" in self.kwargs else DEFAULT_JSON_DECODER
+        )  # json serialize
+        dumps = (
+            self.kwargs.pop("dumps") if "dumps" in self.kwargs else DEFAULT_JSON_ENCODER
+        )
+        super().__init__(url, username, password, loads, dumps)
         self.client_session = aiohttp.ClientSession(json_serialize=self.dumps)
-        super().__init__(username, password, url, loads, dumps)
 
     async def send_request(self, endpoint: str, data, method: str = "POST"):
-        async with self.client_session.request(method,
-                                               urljoin(self.url, endpoint),
-                                               data=data,
-                                               timeout=self.timeout) as resp:
+        async with self.client_session.request(
+            method,
+            urljoin(self.url, endpoint),
+            data=data,
+            timeout=self.timeout,
+            **self.kwargs,
+        ) as resp:
             status = resp.status
             if status != 200:
                 if status == 403:
@@ -1576,4 +1657,13 @@ class QbittorrentClient(_BaseQbittorrentClient):
                     raise ApiFailedException(await resp.text)
                 else:
                     raise BaseQbittorrentException(await resp.text)
-            return await resp.json(loads=self.loads)
+            try:
+                return await resp.json(loads=self.loads)
+            except:
+                return await resp.text()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.client_session.close()
