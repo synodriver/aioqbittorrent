@@ -1,6 +1,7 @@
 """
 Copyright (c) 2008-2021 synodriver <synodriver@gmail.com>
 """
+from functools import partial
 from typing import BinaryIO, List, Optional, Union
 from urllib.parse import urljoin
 
@@ -1637,7 +1638,20 @@ class QbittorrentClient(_BaseQbittorrentClient):
             self.kwargs.pop("dumps") if "dumps" in self.kwargs else DEFAULT_JSON_ENCODER
         )
         super().__init__(url, username, password, loads, dumps)
-        self.client_session = aiohttp.ClientSession(json_serialize=self.dumps)
+        self.client_session = aiohttp.ClientSession(
+            json_serialize=self.dumps, cookie_jar=aiohttp.CookieJar(unsafe=True)
+        )
+
+    def __getattr__(self, func: str):
+        parts = func.split("_")
+        endpoint: str = self.prefix + "/" + "/".join(parts)
+
+        async def pfunc(method: str = "POST", **data):
+            if not data:
+                data = None
+            return await self.send_request(endpoint, data, method)
+
+        return pfunc
 
     async def send_request(self, endpoint: str, data, method: str = "POST"):
         async with self.client_session.request(
