@@ -47,7 +47,10 @@ class _BaseQbittorrentClient:
         :return:
         """
         data = {"username": self.username, "password": self.password}
-        return await self.send_request(f"{self.prefix}/auth/login", data)
+        ret = await self.send_request(f"{self.prefix}/auth/login", data)
+        if ret == "Fails.":
+            raise ApiFailedException("wrong username or password")
+        return ret
 
     async def auth_logout(self):
         """
