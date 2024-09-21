@@ -1669,11 +1669,11 @@ class QbittorrentClient(_BaseQbittorrentClient):
                 if status == 403:
                     raise IPBanedException(await resp.text())
                 elif status == 404:
-                    raise HashNotFoundException(await resp.text)
+                    raise HashNotFoundException(await resp.text())
                 elif status == 409:
-                    raise ApiFailedException(await resp.text)
+                    raise ApiFailedException(await resp.text())
                 else:
-                    raise BaseQbittorrentException(await resp.text)
+                    raise BaseQbittorrentException(await resp.text())
             try:
                 return await resp.json(loads=self.loads)
             except:
