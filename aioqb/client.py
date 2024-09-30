@@ -720,7 +720,6 @@ class _BaseQbittorrentClient:
         :param hashes: Filter by hashes. Can contain multiple hashes separated by |
         :return:
         """
-        hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
         data = {
             "filter": filter,
             "category": category,
@@ -729,8 +728,10 @@ class _BaseQbittorrentClient:
             "reverse": reverse,
             "limit": limit,
             "offset": offset,
-            "hashes": hashes,
         }
+        if hashes is not None:
+            hashes = hashes if isinstance(hashes, str) else "|".join(hashes)
+            data["hashes"] = hashes
         data = {k: v for k, v in data.items() if v is not None}
         return await self.send_request(f"{self.prefix}/torrents/info", data)
 
