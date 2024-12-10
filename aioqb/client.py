@@ -1630,10 +1630,14 @@ class QbittorrentClient(_BaseQbittorrentClient):
         url: Optional[str] = DEFAULT_HOST,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        timeout: Union[int, float] = DEFAULT_TIMEOUT,
+        timeout: Union[int, float, aiohttp.ClientTimeout] = DEFAULT_TIMEOUT,
         **kwargs,
     ):
-        self.timeout = timeout
+        self.timeout = (
+            aiohttp.ClientTimeout(timeout)
+            if isinstance(timeout, (int, float))
+            else timeout
+        )
         self.kwargs = kwargs  # 用于session.post
         loads = (
             self.kwargs.pop("loads") if "loads" in self.kwargs else DEFAULT_JSON_DECODER
@@ -1658,6 +1662,10 @@ class QbittorrentClient(_BaseQbittorrentClient):
         return pfunc
 
     async def send_request(self, endpoint: str, data, method: str = "POST"):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if not isinstance(v, str):
+                    data[k] = str(v)
         async with self.client_session.request(
             method,
             urljoin(self.url, endpoint),
